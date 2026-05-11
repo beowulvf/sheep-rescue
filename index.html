@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sheep Rescue 🐑</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="hud">
+        <div class="hud-item">Score <span id="score">0</span></div>
+        <div class="hud-title">🐑 Sheep Rescue</div>
+        <div class="hud-item">Time <span id="time">0</span>s</div>
+      </header>
+
+      <div class="stage">
+        <canvas id="game"></canvas>
+
+        <!-- Start screen overlay -->
+        <div id="startScreen" class="overlay">
+          <h1>🐑 Sheep Rescue</h1>
+          <p>Guide the shepherd with <strong>WASD</strong> or the <strong>arrow keys</strong>.</p>
+          <p>Catch every sheep you can. Touch a wolf and it's game over.</p>
+          <button id="startBtn" class="btn">Start Game</button>
+        </div>
+
+        <!-- Game over overlay -->
+        <div id="gameOverScreen" class="overlay hidden">
+          <h1>Game Over</h1>
+          <p>You rescued <span id="finalScore">0</span> sheep in <span id="finalTime">0</span>s.</p>
+          <p id="bestLine" class="best"></p>
+          <button id="restartBtn" class="btn">Play Again</button>
+        </div>
+      </div>
+
+      <footer class="tip">Tip: wolves get faster the longer you survive — keep moving!</footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

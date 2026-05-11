@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f src/counter.js src/assets/javascript.svg src/assets/vite.svg src/assets/hero.png public/icons.svg public/favicon.svg)",
+      "Bash(rmdir src/assets)"
+    ]
+  }
+}

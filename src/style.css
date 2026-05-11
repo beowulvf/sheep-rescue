@@ -1,0 +1,184 @@
+/* ---- Sheep Rescue styles ---- */
+
+:root {
+  --grass-1: #7ec850;
+  --grass-2: #6bbf45;
+  --panel: #1f2933;
+  --panel-soft: #2b3a47;
+  --text: #f4f7f5;
+  --text-dim: #b6c2bd;
+  --accent: #ffd166;
+  --accent-strong: #f4b740;
+  --danger: #ef5350;
+  --sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  background: radial-gradient(circle at 50% 0%, #2b3a47, #131c24 70%);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100svh;
+}
+
+#app {
+  width: min(900px, 100%);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---- HUD ---- */
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 12px 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.hud-item {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.hud-item span {
+  display: inline-block;
+  min-width: 2ch;
+  margin-left: 6px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hud-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Stage / canvas ---- */
+.stage {
+  position: relative;
+  width: 100%;
+  /* 4:3 play area that scales with the page width */
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+canvas#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(var(--grass-1), var(--grass-2));
+  touch-action: none;
+}
+
+/* ---- Overlays (start / game over) ---- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(15, 22, 28, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+
+.overlay p {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.overlay .best {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  margin-top: 8px;
+  padding: 12px 28px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #2a2000;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 var(--accent-strong);
+  transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.15s ease;
+}
+
+.btn:hover {
+  background: #ffda85;
+}
+
+.btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--accent-strong);
+}
+
+.btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* ---- Footer tip ---- */
+.tip {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* ---- Small screens ---- */
+@media (max-width: 540px) {
+  .hud {
+    padding: 10px 12px;
+  }
+  .hud-title {
+    font-size: 1rem;
+  }
+  .hud-item {
+    font-size: 0.75rem;
+  }
+}
