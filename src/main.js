@@ -5,6 +5,8 @@ import './style.css';
 
    - Move the shepherd with WASD or the arrow keys.
    - Walk into sheep to rescue them (+1 point each); a new sheep appears.
+   - Press SPACE (or click / tap) to fling a sling stone the way you're facing;
+     a stone that hits a wolf drives it off for bonus points.
    - Wolves chase you and get faster the longer you survive.
    - If a wolf touches you, it's game over.
    ===================================================================== */
@@ -25,16 +27,24 @@ const WOLF_BASE_SPEED = 110;
 const WOLF_SPEED_GROWTH = 6;     // extra px/s per second survived
 const WOLF_MAX_SPEED = 275;      // eventually slightly faster than the player
 const WOLF_SPAWN_INTERVAL = 14;  // seconds between new wolves joining the hunt
-const WOLF_MAX_COUNT = 5;
+const WOLF_MAX_COUNT = 5;        // wolves on the field at once
+
+// ---- Sling projectile tunables ----
+const STONE_R = 6;               // stone collision radius
+const STONE_SPEED = 560;         // px / second — outpaces even a sped-up wolf
+const STONE_COOLDOWN = 0.45;     // seconds you must wait between shots (anti-spam)
+const WOLF_KILL_POINTS = 5;      // score awarded for downing a wolf with a stone
 
 // ---- DOM references ----
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
+const wolvesEl = document.getElementById('wolves');
 const timeEl = document.getElementById('time');
 const startScreen = document.getElementById('startScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
 const finalScoreEl = document.getElementById('finalScore');
+const finalWolvesEl = document.getElementById('finalWolves');
 const finalTimeEl = document.getElementById('finalTime');
 const bestLineEl = document.getElementById('bestLine');
 const startBtn = document.getElementById('startBtn');
@@ -71,20 +81,41 @@ window.addEventListener('keydown', (e) => {
     keys.add(k);
     e.preventDefault(); // stop arrow keys from scrolling the page
   }
-  // Enter / Space starts (or restarts) the game from a non-playing state.
-  if ((k === 'enter' || k === ' ') && state !== 'playing') startGame();
+  // SPACE: fire a sling stone while playing, otherwise (re)start the game.
+  if (k === ' ') {
+    e.preventDefault(); // Space scrolls the page by default — never want that here
+    if (state === 'playing') fireStone();
+    else startGame();
+  } else if (k === 'enter' && state !== 'playing') {
+    startGame();
+  }
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear()); // don't get stuck moving
+
+// Mouse / touch / pen: a press on the play area fires a stone (and starts the
+// game from a menu). We turn the shepherd to face the side that was pressed
+// first, so a tap to your left slings a stone to the left.
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (state !== 'playing') { startGame(); return; }
+  const rect = canvas.getBoundingClientRect();
+  const worldX = ((e.clientX - rect.left) / rect.width) * WORLD_W;
+  if (worldX < player.x - 4) player.facing = -1;
+  else if (worldX > player.x + 4) player.facing = 1;
+  fireStone();
+});
 
 // ---------------------------------------------------------------------
 // Game state
 // ---------------------------------------------------------------------
 let state = 'start';     // 'start' | 'playing' | 'gameover'
-let player, sheep, wolves, particles, decor;
+let player, sheep, wolves, particles, decor, stones;
 let score = 0;
 let elapsed = 0;         // seconds survived this run
 let wolvesSpawned = 0;   // how many wolves have joined this run
+let wolvesDefeated = 0;  // wolves knocked out by sling stones this run
+let shootTimer = 0;      // sling cooldown: counts down to 0; can fire when <= 0
 let lastTime = 0;
 
 // ---- Small helpers ----
@@ -160,6 +191,61 @@ function spawnBurst(x, y, color, n, speedRange, lifeRange) {
 }
 
 // ---------------------------------------------------------------------
+// Sling projectiles
+// ---------------------------------------------------------------------
+// Fling a stone from the shepherd in the direction he's currently facing.
+// Ignored while a previous shot is still cooling down or the game isn't
+// running, which is what keeps the player from spamming shots.
+function fireStone() {
+  if (state !== 'playing' || shootTimer > 0) return;
+  shootTimer = STONE_COOLDOWN;
+
+  // Spawn just in front of the shepherd's hands and travel purely
+  // horizontally along his facing direction (+1 = right, -1 = left).
+  const muzzleX = player.x + player.facing * PLAYER_R;
+  const muzzleY = player.y - PLAYER_R * 0.1;
+  stones.push({ x: muzzleX, y: muzzleY, vx: player.facing * STONE_SPEED, vy: 0 });
+
+  // A tiny dust puff at the muzzle for a bit of "thwip" feedback.
+  spawnBurst(muzzleX, muzzleY, '#e8e6e0', 5, [30, 90], [0.12, 0.28]);
+}
+
+// Advance every stone, drop the ones that leave the field, and knock out the
+// first wolf each stone touches (circle/circle test). Called once per step.
+function updateStones(dt) {
+  // Tick down the shared cooldown so the next fireStone() can take.
+  if (shootTimer > 0) shootTimer -= dt;
+
+  for (let i = stones.length - 1; i >= 0; i--) {
+    const st = stones[i];
+    st.x += st.vx * dt;
+    st.y += st.vy * dt;
+
+    // Off the field? The stone is spent — forget it.
+    if (st.x < -STONE_R || st.x > WORLD_W + STONE_R ||
+        st.y < -STONE_R || st.y > WORLD_H + STONE_R) {
+      stones.splice(i, 1);
+      continue;
+    }
+
+    // Did this stone strike a wolf? If so, that wolf is driven off.
+    for (let j = 0; j < wolves.length; j++) {
+      const w = wolves[j];
+      const reach = STONE_R + WOLF_R;
+      if (dist2(st.x, st.y, w.x, w.y) <= reach * reach) {
+        wolves.splice(j, 1);
+        wolvesDefeated += 1;
+        score += WOLF_KILL_POINTS;
+        spawnBurst(w.x, w.y, '#b9aa96', 14, [60, 200], [0.3, 0.7]);
+        stones.splice(i, 1); // a stone hits only one wolf, then it's gone
+        updateHud();
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
 // State transitions
 // ---------------------------------------------------------------------
 function resetGame() {
@@ -170,7 +256,10 @@ function resetGame() {
   wolvesSpawned = 1;
   particles = [];
   decor = makeDecor();
+  stones = [];
+  shootTimer = 0;
   score = 0;
+  wolvesDefeated = 0;
   elapsed = 0;
   updateHud();
 }
@@ -185,9 +274,11 @@ function startGame() {
 
 function gameOver() {
   state = 'gameover';
+  stones = []; // no stragglers left frozen mid-air on the game-over screen
   spawnBurst(player.x, player.y, '#ffffff', 20, [60, 220], [0.4, 0.95]);
 
   finalScoreEl.textContent = score;
+  finalWolvesEl.textContent = wolvesDefeated;
   finalTimeEl.textContent = Math.floor(elapsed);
 
   // Track a best score in localStorage (fails silently in private mode, etc).
@@ -205,6 +296,7 @@ function gameOver() {
 
 function updateHud() {
   scoreEl.textContent = score;
+  wolvesEl.textContent = wolvesDefeated;
   timeEl.textContent = Math.floor(elapsed);
 }
 
@@ -262,8 +354,9 @@ function update(dt) {
     if (s.y > WORLD_H - SHEEP_R) { s.y = WORLD_H - SHEEP_R; s.vy = -Math.abs(s.vy); }
   }
 
-  // --- New wolves join over time ---
-  if (wolvesSpawned < WOLF_MAX_COUNT && elapsed > wolvesSpawned * WOLF_SPAWN_INTERVAL) {
+  // --- New wolves arrive over time (up to WOLF_MAX_COUNT on the field at once;
+  //     downing one with a stone makes room for the next to come prowling). ---
+  if (wolves.length < WOLF_MAX_COUNT && elapsed > wolvesSpawned * WOLF_SPAWN_INTERVAL) {
     wolves.push(makeWolf());
     wolvesSpawned++;
   }
@@ -281,6 +374,9 @@ function update(dt) {
     w.x = clamp(w.x, WOLF_R, WORLD_W - WOLF_R);
     w.y = clamp(w.y, WOLF_R, WORLD_H - WOLF_R);
   }
+
+  // --- Sling stones: fly straight, despawn at the edges, KO wolves on contact ---
+  updateStones(dt);
 
   // --- Collision: shepherd vs sheep (circle/circle) → rescue! ---
   for (let i = 0; i < sheep.length; i++) {
@@ -333,6 +429,7 @@ function render() {
   const drawables = [];
   for (const s of sheep) drawables.push({ y: s.y, draw: () => drawSheep(s) });
   for (const w of wolves) drawables.push({ y: w.y, draw: () => drawWolf(w) });
+  for (const st of stones) drawables.push({ y: st.y, draw: () => drawStone(st) });
   drawables.push({ y: player.y, draw: () => drawShepherd(player) });
   drawables.sort((a, b) => a.y - b.y);
   for (const d of drawables) d.draw();
@@ -482,7 +579,7 @@ function drawShepherd(p) {
   ctx.save();
   ctx.translate(p.x, p.y);
 
-  // shepherd's crook, on the side he's facing
+  // shepherd's crook + a little leather sling, both on the side he's facing
   ctx.save();
   ctx.scale(p.facing, 1);
   ctx.strokeStyle = '#8a5a2b';
@@ -493,6 +590,20 @@ function drawShepherd(p) {
   ctx.lineTo(PLAYER_R * 0.95, -PLAYER_R * 1.5);
   ctx.arc(PLAYER_R * 0.6, -PLAYER_R * 1.5, PLAYER_R * 0.35, 0, Math.PI, true);
   ctx.stroke();
+
+  // sling: two thin straps from his free hand down to a small pouch + pebble
+  ctx.strokeStyle = '#6b4f33';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PLAYER_R * 1.0, PLAYER_R * 0.12);
+  ctx.quadraticCurveTo(PLAYER_R * 1.5, PLAYER_R * 0.4, PLAYER_R * 1.22, PLAYER_R * 0.95);
+  ctx.moveTo(PLAYER_R * 1.0, PLAYER_R * 0.12);
+  ctx.quadraticCurveTo(PLAYER_R * 1.15, PLAYER_R * 0.6, PLAYER_R * 1.22, PLAYER_R * 0.95);
+  ctx.stroke();
+  ctx.fillStyle = '#7d7264';
+  ctx.beginPath();
+  ctx.arc(PLAYER_R * 1.2, PLAYER_R * 0.86, PLAYER_R * 0.15, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 
   // legs
@@ -535,6 +646,30 @@ function drawShepherd(p) {
   ctx.beginPath(); ctx.arc(PLAYER_R * 0.16, -PLAYER_R * 0.74, PLAYER_R * 0.07, 0, Math.PI * 2); ctx.fill();
 
   ctx.restore();
+}
+
+// A flung sling stone: a little grey pebble with a short motion streak
+// trailing in the direction it came from, so the shot reads as fast-moving.
+function drawStone(st) {
+  const speed = Math.hypot(st.vx, st.vy) || 1;
+  const tx = -(st.vx / speed) * 16, ty = -(st.vy / speed) * 16;
+
+  ctx.strokeStyle = 'rgba(120, 110, 95, 0.45)';
+  ctx.lineWidth = STONE_R * 1.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(st.x, st.y);
+  ctx.lineTo(st.x + tx, st.y + ty);
+  ctx.stroke();
+
+  ctx.fillStyle = '#7d7264';
+  ctx.beginPath();
+  ctx.arc(st.x, st.y, STONE_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#a89c8a';
+  ctx.beginPath();
+  ctx.arc(st.x - STONE_R * 0.3, st.y - STONE_R * 0.3, STONE_R * 0.42, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawParticles() {

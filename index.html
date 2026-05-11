@@ -9,6 +9,7 @@
     <div id="app">
       <header class="hud">
         <div class="hud-item">Score <span id="score">0</span></div>
+        <div class="hud-item">Wolves defeated <span id="wolves">0</span></div>
         <div class="hud-title">🐑 Sheep Rescue</div>
         <div class="hud-item">Time <span id="time">0</span>s</div>
       </header>
@@ -20,6 +21,7 @@
         <div id="startScreen" class="overlay">
           <h1>🐑 Sheep Rescue</h1>
           <p>Guide the shepherd with <strong>WASD</strong> or the <strong>arrow keys</strong>.</p>
+          <p>Press <strong>SPACE</strong> — or click / tap — to fling a sling stone at the wolves.</p>
           <p>Catch every sheep you can. Touch a wolf and it's game over.</p>
           <button id="startBtn" class="btn">Start Game</button>
         </div>
@@ -27,13 +29,13 @@
         <!-- Game over overlay -->
         <div id="gameOverScreen" class="overlay hidden">
           <h1>Game Over</h1>
-          <p>You rescued <span id="finalScore">0</span> sheep in <span id="finalTime">0</span>s.</p>
+          <p>You rescued <span id="finalScore">0</span> sheep and drove off <span id="finalWolves">0</span> wolves in <span id="finalTime">0</span>s.</p>
           <p id="bestLine" class="best"></p>
           <button id="restartBtn" class="btn">Play Again</button>
         </div>
       </div>
 
-      <footer class="tip">Tip: wolves get faster the longer you survive — keep moving!</footer>
+      <footer class="tip">Tip: wolves get faster the longer you survive — keep moving, and sling stones to thin the pack!</footer>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
